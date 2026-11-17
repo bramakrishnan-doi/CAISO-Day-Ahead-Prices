@@ -1,0 +1,14 @@
+{
+  "name": "mead-price-tracker-pages",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CAISO MEAD day-ahead price dashboard and scheduled data updater",
+  "scripts": {
+    "update-prices": "node scripts/update_prices.js",
+    "export-data": "python3 scripts/export_days_json.py data/mead_daily.db public/data/days.json"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "sql.js": "^1.11.0"
+  }
+}

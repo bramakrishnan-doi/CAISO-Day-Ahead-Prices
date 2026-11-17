@@ -1,0 +1,63 @@
+name: Deploy MEAD price dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/renderer/**'
+      - 'src/caiso.js'
+      - 'src/db.js'
+      - 'scripts/**'
+      - 'data/mead_daily.db'
+      - 'public/**'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/update-prices.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_run:
+    workflows: [Update CAISO prices]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Export daily table from tracked database
+        run: python3 scripts/export_days_json.py data/mead_daily.db public/data/days.json
+      - name: Assemble static site
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          mkdir -p _site/data
+          cp src/renderer/index.html src/renderer/styles.css src/renderer/app.jsx _site/
+          cp public/data/days.json _site/data/days.json
+          printf 'window.MEAD_ACTIONS_URL = "https://github.com/%s/actions/workflows/update-prices.yml";\n' "$REPOSITORY" > _site/site-config.js
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
